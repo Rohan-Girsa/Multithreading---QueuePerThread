@@ -2,7 +2,13 @@ package com.example;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+
 import com.sun.management.OperatingSystemMXBean;
+
+import jakarta.annotation.PostConstruct;
+
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,7 +19,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import javax.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -68,7 +73,7 @@ public class QueueThreadApplication {
 		executors.execute(popQueue);
 		MyNewTask myNewTask = new MyNewTask(asyncConfig);
 		ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-		scheduler.scheduleAtFixedRate(myNewTask, 0, 2, TimeUnit.MINUTES);
+		scheduler.scheduleAtFixedRate(myNewTask, 0, 1, TimeUnit.MINUTES);
 	}
 
 	private class MyNewTask implements Runnable {
@@ -90,6 +95,12 @@ public class QueueThreadApplication {
 				}
 			}
 			List<String> templateId = tblClientList.stream().map(TblClient::getTemplateId).map(l -> l.toString()).collect(Collectors.toList());
+			for(String key : clientQueue.keySet()) {
+				if(!templateId.contains(key)) {
+					clientQueue.remove(key);
+					queues.remove(key);
+				}
+			}
 			int size = tblClientList.size();
 			if (size > 0 && size != asyncConfig.asyncTaskExecutor().getCorePoolSize()) {
 				((ThreadPoolTaskExecutor) asyncConfig.asyncTaskExecutor()).setCorePoolSize(size);
@@ -97,12 +108,17 @@ public class QueueThreadApplication {
 			}
 			OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
 			MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
+			ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+	        ThreadInfo[] threadInfos = threadMXBean.dumpAllThreads(true, true);
 			double cpuUsage = osBean.getProcessCpuLoad() * 100;
 			long usedMemory = memoryBean.getHeapMemoryUsage().getUsed() + memoryBean.getNonHeapMemoryUsage().getUsed();
 	        long maxMemory = Runtime.getRuntime().maxMemory();
 	        double memoryUsage = ((double) usedMemory / maxMemory) * 100;
 	        log.info("CPU Usage: " + String.format("%.2f", cpuUsage) + "%");
 	        log.info("Memory Usage: " + String.format("%.2f", memoryUsage) + "%");
+	        for (ThreadInfo threadInfo : threadInfos) {
+	            log.info("Thread name: " + threadInfo.getThreadName()+"    Thread state: " + threadInfo.getThreadState());
+	        }
 		}
 	}
 }

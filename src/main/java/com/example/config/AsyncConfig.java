@@ -18,7 +18,8 @@ public class AsyncConfig {
 		taskExecutor = new ThreadPoolTaskExecutor();
 		taskExecutor.setCorePoolSize(workerThread);
 		taskExecutor.setMaxPoolSize(workerThread);
-		taskExecutor.setThreadNamePrefix("MyAsyncThread-");
+		taskExecutor.setThreadNamePrefix("MyAsync-");
+		taskExecutor.initialize();
 		return taskExecutor;
 	}
 }
